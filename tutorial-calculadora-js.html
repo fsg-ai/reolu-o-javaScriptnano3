@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Monte sua Calculadora em JavaScript</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;700;800&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper: #F3F6FB;
+    --paper-line: #DCE4F2;
+    --ink: #1B2340;
+    --ink-soft: #545C79;
+    --pink: #FF4F81;
+    --blue: #2F6FED;
+    --green: #21A366;
+    --green-bg: #E4F7ED;
+    --amber: #FFB020;
+    --code-bg: #14172B;
+    --code-panel: #1D2140;
+    --mint: #7CFFB2;
+    --mint-dim: #9AA4D1;
+    --card-shadow: 0 10px 30px rgba(27,35,64,0.10), 0 2px 6px rgba(27,35,64,0.06);
+    --radius: 18px;
+  }
+
+  *{ box-sizing: border-box; }
+
+  body{
+    margin:0;
+    min-height:100vh;
+    font-family: 'Nunito', system-ui, sans-serif;
+    color: var(--ink);
+    background-color: var(--paper);
+    background-image:
+      linear-gradient(var(--paper-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--paper-line) 1px, transparent 1px);
+    background-size: 28px 28px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,h2,h3, .btn, .tag, .step-counter{ font-family: 'Baloo 2', 'Nunito', sans-serif; }
+
+  .app{
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 20px 18px 60px;
+  }
+
+  /* ---------- top bar / progress ---------- */
+  .topbar{
+    position: sticky;
+    top: 0;
+    padding: 14px 0 10px;
+    background: linear-gradient(var(--paper) 78%, transparent);
+    z-index: 5;
+  }
+  .progress-track{
+    height: 10px;
+    background: #fff;
+    border: 2px solid var(--ink);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .progress-fill{
+    height: 100%;
+    background: linear-gradient(90deg, var(--pink), var(--blue));
+    width: 0%;
+    transition: width .5s ease;
+  }
+  .dots{
+    display:flex;
+    justify-content: space-between;
+    margin-top: 10px;
+  }
+  .dot{
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    border: 2px solid var(--ink);
+    background: #fff;
+    display:flex; align-items:center; justify-content:center;
+    font-size: 12px; font-weight: 700;
+    cursor: not-allowed;
+    color: var(--ink-soft);
+  }
+  .dot.unlocked{ cursor:pointer; }
+  .dot.current{ background: var(--blue); color:#fff; }
+  .dot.done{ background: var(--green); color:#fff; border-color: var(--green); }
+  .dot:focus-visible{ outline: 3px solid var(--amber); outline-offset: 2px; }
+
+  /* ---------- hero (step 1) ---------- */
+  .hero-keys{
+    display:flex;
+    gap: 10px;
+    justify-content:center;
+    margin: 6px 0 22px;
+  }
+  .key{
+    width: 54px; height: 54px;
+    border-radius: 12px;
+    border: 2px solid var(--ink);
+    background: #fff;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Fira Code', monospace;
+    font-weight: 600;
+    font-size: 20px;
+    box-shadow: 3px 3px 0 var(--ink);
+  }
+  .key:nth-child(1){ transform: rotate(-7deg); background:#FFE3EC;}
+  .key:nth-child(2){ transform: rotate(4deg); background:#E3ECFF;}
+  .key:nth-child(3){ transform: rotate(-3deg); background:#E4F7ED;}
+  .key:nth-child(4){ transform: rotate(6deg); background:#FFF3DA;}
+
+  /* ---------- card ---------- */
+  .card{
+    background:#fff;
+    border: 2px solid var(--ink);
+    border-radius: var(--radius);
+    box-shadow: var(--card-shadow);
+    padding: 26px 24px 22px;
+  }
+  .tag{
+    display:inline-block;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--blue);
+    background: #E3ECFF;
+    border: 2px solid var(--blue);
+    padding: 3px 12px;
+    border-radius: 999px;
+    margin-bottom: 12px;
+  }
+  h1{
+    font-size: 24px;
+    line-height: 1.25;
+    margin: 0 0 10px;
+  }
+  .step p{
+    font-size: 16px;
+    line-height: 1.55;
+    color: var(--ink-soft);
+    margin: 0 0 14px;
+  }
+  .step p strong{ color: var(--ink); }
+
+  /* ---------- code panel ---------- */
+  .code-panel{
+    background: var(--code-bg);
+    border-radius: 14px;
+    padding: 18px 16px;
+    margin: 14px 0 16px;
+    overflow-x: auto;
+  }
+  .code-line{
+    font-family: 'Fira Code', monospace;
+    font-size: 14.5px;
+    line-height: 1.9;
+    color: var(--mint-dim);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .code-line .kw{ color: #82AAFF; }
+
+  /* ---------- blanks ---------- */
+  .blank{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    min-width: 46px;
+    height: 26px;
+    padding: 0 8px;
+    margin: 0 2px;
+    border-radius: 7px;
+    border: 2px dashed var(--mint-dim);
+    background: transparent;
+    color: var(--mint);
+    font-family: 'Fira Code', monospace;
+    font-size: 14.5px;
+    cursor: pointer;
+    vertical-align: middle;
+  }
+  .blank:focus-visible{ outline: 3px solid var(--amber); outline-offset: 2px; }
+  .blank.filled{
+    border-style: solid;
+    border-color: var(--mint);
+    background: rgba(124,255,178,0.12);
+    color: #fff;
+  }
+  .blank.wrong{
+    border-color: var(--pink);
+    background: rgba(255,79,129,0.15);
+    animation: shake .35s;
+  }
+  @media (prefers-reduced-motion: reduce){
+    .blank.wrong{ animation:none; }
+  }
+  @keyframes shake{
+    0%,100%{ transform: translateX(0); }
+    25%{ transform: translateX(-4px); }
+    75%{ transform: translateX(4px); }
+  }
+
+  /* ---------- word bank ---------- */
+  .word-bank{
+    display:flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 4px 0 18px;
+  }
+  .tile{
+    font-family: 'Fira Code', monospace;
+    font-size: 15px;
+    font-weight: 600;
+    padding: 9px 18px;
+    border-radius: 10px;
+    border: 2px solid var(--ink);
+    background: #fff;
+    box-shadow: 2px 2px 0 var(--ink);
+    cursor: pointer;
+    color: var(--ink);
+  }
+  .tile:hover{ transform: translateY(-1px); }
+  .tile:active{ transform: translateY(1px); box-shadow: 1px 1px 0 var(--ink); }
+  .tile:focus-visible{ outline: 3px solid var(--amber); outline-offset: 2px; }
+  .tile.used{
+    opacity: .35;
+    cursor: default;
+    box-shadow: none;
+    pointer-events: none;
+  }
+
+  /* ---------- hint ---------- */
+  .hint-box{
+    display:none;
+    background: #FFF3DA;
+    border: 2px solid var(--amber);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 14.5px;
+    color: #7A5300;
+    margin-bottom: 14px;
+  }
+  .hint-box.show{ display:block; }
+
+  /* ---------- actions / feedback ---------- */
+  .actions{
+    display:flex;
+    gap: 10px;
+    align-items:center;
+    flex-wrap: wrap;
+  }
+  .btn{
+    font-size: 16px;
+    font-weight: 700;
+    padding: 12px 22px;
+    border-radius: 12px;
+    border: 2px solid var(--ink);
+    cursor: pointer;
+  }
+  .btn-primary{
+    background: var(--blue);
+    color: #fff;
+    box-shadow: 0 4px 0 #1D4FB0;
+  }
+  .btn-primary:active{ box-shadow: 0 1px 0 #1D4FB0; transform: translateY(3px); }
+  .btn-primary:disabled{
+    background: #BFC8DE;
+    border-color: #BFC8DE;
+    box-shadow: none;
+    cursor: not-allowed;
+  }
+  .btn-ghost{
+    background: #fff;
+    color: var(--ink);
+  }
+  .btn:focus-visible{ outline: 3px solid var(--amber); outline-offset: 2px; }
+
+  .feedback{
+    margin-top: 14px;
+    font-weight: 700;
+    font-size: 15px;
+    min-height: 20px;
+  }
+  .feedback.ok{ color: var(--green); }
+  .feedback.err{ color: var(--pink); }
+
+  .celebrate{
+    display:inline-block;
+    animation: pop .4s ease;
+  }
+  @keyframes pop{
+    0%{ transform: scale(0.6); opacity:0; }
+    60%{ transform: scale(1.12); opacity:1; }
+    100%{ transform: scale(1); }
+  }
+  @media (prefers-reduced-motion: reduce){
+    .celebrate{ animation:none; }
+  }
+
+  /* ---------- final code ---------- */
+  .final-code{
+    font-family: 'Fira Code', monospace;
+    font-size: 13.5px;
+    line-height: 1.7;
+    color: var(--mint);
+    white-space: pre;
+    overflow-x: auto;
+    margin: 0;
+  }
+  .copy-row{
+    display:flex;
+    gap:10px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+  }
+  .steps-list{
+    padding-left: 20px;
+    color: var(--ink-soft);
+    line-height: 1.7;
+  }
+  .steps-list li strong{ color: var(--ink); }
+  a.link-btn{
+    display:inline-block;
+    text-decoration:none;
+  }
+
+  footer{
+    text-align:center;
+    color: var(--ink-soft);
+    font-size: 13px;
+    margin-top: 34px;
+  }
+
+  .hidden{ display:none; }
+
+  @media (max-width: 420px){
+    .card{ padding: 20px 16px 18px; }
+    h1{ font-size: 21px; }
+    .key{ width:46px; height:46px; font-size:17px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <div class="topbar">
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="dots" id="dots"></div>
+  </div>
+
+  <main id="stepsContainer">
+
+    <!-- STEP 1 : boas-vindas -->
+    <section class="step" data-step="1">
+      <div class="hero-keys" aria-hidden="true">
+        <div class="key">7</div>
+        <div class="key">+</div>
+        <div class="key">−</div>
+        <div class="key">=</div>
+      </div>
+      <div class="card">
+        <span class="tag">🧮 Passo 1 de 7</span>
+        <h1>Vamos construir uma calculadora em JavaScript!</h1>
+        <p>Neste tutorial você vai montar, pedacinho por pedacinho, o código de uma calculadora que faz <strong>soma</strong> e <strong>subtração</strong>.</p>
+        <p>Você vai praticar três ideias importantes da programação:</p>
+        <ul class="steps-list">
+          <li><strong>Arrow functions</strong> — um jeito curto de escrever funções.</li>
+          <li><strong>Switch statement</strong> — para escolher qual operação fazer.</li>
+          <li><strong>Operador ternário</strong> — para decidir algo em uma linha só.</li>
+        </ul>
+        <p>Em cada passo, clique nas peças certas para completar o código. No final, você vai copiar o código pronto e testar no <strong>MyCompiler</strong>.</p>
+        <div class="actions">
+          <button class="btn btn-primary" onclick="goToStep(2)">Começar 🚀</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 2 : somar -->
+    <section class="step" data-step="2">
+      <div class="card">
+        <span class="tag">➕ Passo 2 de 7</span>
+        <h1>Função para somar</h1>
+        <p>Uma <strong>arrow function</strong> é uma forma curta de criar uma função. Ela recebe valores entre parênteses e usa uma "seta" (<code>=&gt;</code>) para dizer o que ela devolve.</p>
+        <p>Complete a função <code>somar</code>, que recebe dois números (<code>a</code> e <code>b</code>) e devolve a soma deles:</p>
+        <div class="code-panel">
+          <div class="code-line" id="code-2"></div>
+        </div>
+        <div class="hint-box" id="hint-2">💡 A seta da arrow function se escreve com igual e maior que: <strong>=&gt;</strong>. E "somar" usa o sinal de <strong>mais</strong>.</div>
+        <div class="word-bank" id="bank-2"></div>
+        <div class="actions">
+          <button class="btn btn-ghost" type="button" onclick="toggleHint(2)">Dica</button>
+          <button class="btn btn-primary" type="button" onclick="checkStep(2)">Verificar</button>
+        </div>
+        <div class="feedback" id="feedback-2"></div>
+      </div>
+    </section>
+
+    <!-- STEP 3 : subtrair -->
+    <section class="step" data-step="3">
+      <div class="card">
+        <span class="tag">➖ Passo 3 de 7</span>
+        <h1>Função para subtrair</h1>
+        <p>Agora crie a função <code>subtrair</code>, seguindo a mesma ideia da função anterior — só muda a operação.</p>
+        <div class="code-panel">
+          <div class="code-line" id="code-3"></div>
+        </div>
+        <div class="hint-box" id="hint-3">💡 A estrutura é igual à da função <code>somar</code>. Só troca o sinal de <strong>+</strong> pelo de <strong>−</strong>.</div>
+        <div class="word-bank" id="bank-3"></div>
+        <div class="actions">
+          <button class="btn btn-ghost" type="button" onclick="toggleHint(3)">Dica</button>
+          <button class="btn btn-primary" type="button" onclick="checkStep(3)">Verificar</button>
+        </div>
+        <div class="feedback" id="feedback-3"></div>
+      </div>
+    </section>
+
+    <!-- STEP 4 : switch - case soma -->
+    <section class="step" data-step="4">
+      <div class="card">
+        <span class="tag">🔀 Passo 4 de 7</span>
+        <h1>Escolhendo a operação (switch)</h1>
+        <p>Um <strong>switch</strong> testa um valor e escolhe o que fazer para cada opção (<code>case</code>). Depois de achar o <code>case</code> certo, usamos <code>break</code> para "sair" do switch, sem testar os outros casos à toa.</p>
+        <p>Complete o primeiro caso, para quando a operação escolhida for <code>"soma"</code>:</p>
+        <div class="code-panel">
+          <div class="code-line" id="code-4"></div>
+        </div>
+        <div class="hint-box" id="hint-4">💡 A palavra que "trava a saída" do switch depois de um case certo é <strong>break</strong>.</div>
+        <div class="word-bank" id="bank-4"></div>
+        <div class="actions">
+          <button class="btn btn-ghost" type="button" onclick="toggleHint(4)">Dica</button>
+          <button class="btn btn-primary" type="button" onclick="checkStep(4)">Verificar</button>
+        </div>
+        <div class="feedback" id="feedback-4"></div>
+      </div>
+    </section>
+
+    <!-- STEP 5 : switch - case subtracao + default -->
+    <section class="step" data-step="5">
+      <div class="card">
+        <span class="tag">🔀 Passo 5 de 7</span>
+        <h1>Completando o switch</h1>
+        <p>Agora adicione o caso para <code>"subtracao"</code>, e um caso <code>default</code> — que é usado quando nenhuma opção anterior combina.</p>
+        <div class="code-panel">
+          <div class="code-line" id="code-5"></div>
+        </div>
+        <div class="hint-box" id="hint-5">💡 De novo: depois de calcular o resultado, usamos <strong>break</strong> para sair do switch.</div>
+        <div class="word-bank" id="bank-5"></div>
+        <div class="actions">
+          <button class="btn btn-ghost" type="button" onclick="toggleHint(5)">Dica</button>
+          <button class="btn btn-primary" type="button" onclick="checkStep(5)">Verificar</button>
+        </div>
+        <div class="feedback" id="feedback-5"></div>
+      </div>
+    </section>
+
+    <!-- STEP 6 : ternario -->
+    <section class="step" data-step="6">
+      <div class="card">
+        <span class="tag">⚖️ Passo 6 de 7</span>
+        <h1>Positivo ou negativo? (operador ternário)</h1>
+        <p>O <strong>operador ternário</strong> é um jeito rápido de escrever um "se... senão" em uma linha: <code>condição ? valorSeVerdadeiro : valorSeFalso</code>.</p>
+        <p>Complete a linha que decide se o resultado é positivo ou negativo:</p>
+        <div class="code-panel">
+          <div class="code-line" id="code-6"></div>
+        </div>
+        <div class="hint-box" id="hint-6">💡 Depois da condição vem uma interrogação <strong>?</strong>. Entre os dois resultados possíveis fica os dois-pontos <strong>:</strong>.</div>
+        <div class="word-bank" id="bank-6"></div>
+        <div class="actions">
+          <button class="btn btn-ghost" type="button" onclick="toggleHint(6)">Dica</button>
+          <button class="btn btn-primary" type="button" onclick="checkStep(6)">Verificar</button>
+        </div>
+        <div class="feedback" id="feedback-6"></div>
+      </div>
+    </section>
+
+    <!-- STEP 7 : final -->
+    <section class="step" data-step="7">
+      <div class="card">
+        <span class="tag">🎉 Passo 7 de 7</span>
+        <h1>Sua calculadora está pronta!</h1>
+        <p>Você montou uma calculadora usando <strong>arrow functions</strong>, <strong>switch</strong> e <strong>operador ternário</strong>. Aqui está o código completo:</p>
+        <div class="code-panel">
+          <pre class="final-code" id="finalCode"></pre>
+        </div>
+        <div class="copy-row">
+          <button class="btn btn-primary" type="button" onclick="copyCode()">📋 Copiar código</button>
+          <a class="link-btn" href="https://www.mycompiler.io/pt/new/nodejs" target="_blank" rel="noopener">
+            <button class="btn btn-ghost" type="button">Abrir MyCompiler ↗</button>
+          </a>
+        </div>
+        <div class="feedback" id="feedback-7"></div>
+        <p style="margin-top:18px;"><strong>Agora é só:</strong></p>
+        <ol class="steps-list">
+          <li>Clicar em <strong>Copiar código</strong>.</li>
+          <li>Abrir o <strong>MyCompiler</strong> (Node.js) e colar o código.</li>
+          <li>Clicar em <strong>Run</strong> e conferir os resultados no console.</li>
+          <li>Copiar o link da página do MyCompiler e colar no formulário da atividade.</li>
+        </ol>
+      </div>
+    </section>
+
+  </main>
+
+  <footer>Tutorial criado para praticar arrow functions, switch e operador ternário 💜</footer>
+</div>
+
+<script>
+/* ---------------------------------------------------------
+   Configuração dos exercícios
+   segments: array de strings (texto) ou null (= lacuna)
+--------------------------------------------------------- */
+const exercises = {
+  2: {
+    segments: ["const somar = (a, b) ", null, " a ", null, " b;"],
+    answers: ["=>", "+"],
+    tiles: ["=>", "+", "-", "=="]
+  },
+  3: {
+    segments: ["const subtrair = (a, b) ", null, " a ", null, " b;"],
+    answers: ["=>", "-"],
+    tiles: ["=>", "-", "+", "*"]
+  },
+  4: {
+    segments: [
+      "const calculadora = (num1, num2, operacao) => {\n  let resultado;\n\n  switch (operacao) {\n    case \"soma\":\n      resultado = somar(num1, num2);\n      ", null, ";\n    // ...\n  }\n};"
+    ],
+    answers: ["break"],
+    tiles: ["break", "continue", "return"]
+  },
+  5: {
+    segments: [
+      "    case \"subtracao\":\n      resultado = subtrair(num1, num2);\n      ", null, ";\n    default:\n      resultado = \"Operação inválida\";\n  }"
+    ],
+    answers: ["break"],
+    tiles: ["break", "continue", "pass"]
+  },
+  6: {
+    segments: ["const mensagem = resultado >= 0 ", null, " \"positivo\" ", null, " \"negativo\";"],
+    answers: ["?", ":"],
+    tiles: ["?", ":", "=>", ";"]
+  }
+};
+
+const FINAL_CODE = `// Calculadora Básica em JavaScript
+
+const somar = (a, b) => a + b;
+const subtrair = (a, b) => a - b;
+
+const calculadora = (num1, num2, operacao) => {
+  let resultado;
+
+  switch (operacao) {
+    case "soma":
+      resultado = somar(num1, num2);
+      break;
+    case "subtracao":
+      resultado = subtrair(num1, num2);
+      break;
+    default:
+      resultado = "Operação inválida";
+  }
+
+  const mensagem = resultado >= 0 ? "positivo" : "negativo";
+  console.log(\`Resultado: \${resultado} (\${mensagem})\`);
+};
+
+calculadora(10, 5, "soma");
+calculadora(3, 8, "subtracao");
+`;
+
+const TOTAL_STEPS = 7;
+const STORAGE_KEY = "calcTutorialUnlocked";
+
+let unlocked = parseInt(localStorage.getItem(STORAGE_KEY) || "1", 10);
+if (isNaN(unlocked) || unlocked < 1) unlocked = 1;
+if (unlocked > TOTAL_STEPS) unlocked = TOTAL_STEPS;
+
+let current = unlocked;
+const filledState = {}; // { stepNum: [valores preenchidos em ordem] }
+const usedTileEl = {};  // { stepNum: { blankIndex: tileElement } }
+
+/* ---------------------------------------------------------
+   Render de uma linha de código com lacunas
+--------------------------------------------------------- */
+function renderCodeLine(step){
+  const cfg = exercises[step];
+  const container = document.getElementById("code-" + step);
+  container.innerHTML = "";
+  filledState[step] = new Array(cfg.answers.length).fill(null);
+  usedTileEl[step] = {};
+
+  let blankIndex = 0;
+  cfg.segments.forEach(part => {
+    if (part === null){
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "blank";
+      btn.dataset.index = blankIndex;
+      btn.setAttribute("aria-label", "Lacuna " + (blankIndex + 1) + ", clique para escolher uma peça");
+      btn.textContent = "___";
+      btn.addEventListener("click", () => clearBlank(step, blankIndex));
+      container.appendChild(btn);
+      blankIndex++;
+    } else {
+      container.appendChild(document.createTextNode(part));
+    }
+  });
+}
+
+function renderBank(step){
+  const cfg = exercises[step];
+  const bank = document.getElementById("bank-" + step);
+  bank.innerHTML = "";
+  const shuffled = [...cfg.tiles].sort(() => Math.random() - 0.5);
+  shuffled.forEach(value => {
+    const tile = document.createElement("button");
+    tile.type = "button";
+    tile.className = "tile";
+    tile.textContent = value;
+    tile.addEventListener("click", () => onTileClick(step, tile, value));
+    bank.appendChild(tile);
+  });
+}
+
+function onTileClick(step, tileEl, value){
+  const filled = filledState[step];
+  const nextIndex = filled.findIndex(v => v === null);
+  if (nextIndex === -1) return; // sem lacunas vazias
+
+  filled[nextIndex] = value;
+  usedTileEl[step][nextIndex] = tileEl;
+  tileEl.classList.add("used");
+
+  const blankEl = document.querySelector('#code-' + step + ' .blank[data-index="' + nextIndex + '"]');
+  blankEl.textContent = value;
+  blankEl.classList.add("filled");
+  blankEl.classList.remove("wrong");
+}
+
+function clearBlank(step, index){
+  const filled = filledState[step];
+  if (filled[index] === null) return;
+  filled[index] = null;
+
+  const tileEl = usedTileEl[step][index];
+  if (tileEl) tileEl.classList.remove("used");
+  delete usedTileEl[step][index];
+
+  const blankEl = document.querySelector('#code-' + step + ' .blank[data-index="' + index + '"]');
+  blankEl.textContent = "___";
+  blankEl.classList.remove("filled", "wrong");
+
+  document.getElementById("feedback-" + step).textContent = "";
+}
+
+function toggleHint(step){
+  document.getElementById("hint-" + step).classList.toggle("show");
+}
+
+function checkStep(step){
+  const cfg = exercises[step];
+  const filled = filledState[step];
+  const feedback = document.getElementById("feedback-" + step);
+
+  if (filled.includes(null)){
+    feedback.className = "feedback err";
+    feedback.textContent = "Preencha todas as lacunas antes de verificar 🙂";
+    return;
+  }
+
+  const correct = filled.every((v, i) => v === cfg.answers[i]);
+
+  if (correct){
+    feedback.className = "feedback ok";
+    feedback.innerHTML = '<span class="celebrate">✅ Isso aí! Código certinho.</span>';
+    unlockNext(step);
+    setTimeout(() => {
+      if (step < TOTAL_STEPS) goToStep(step + 1);
+    }, 900);
+  } else {
+    feedback.className = "feedback err";
+    feedback.textContent = "Quase lá! Confira a dica e tente de novo.";
+    filled.forEach((v, i) => {
+      const blankEl = document.querySelector('#code-' + step + ' .blank[data-index="' + i + '"]');
+      if (v !== cfg.answers[i]) blankEl.classList.add("wrong");
+    });
+    document.getElementById("hint-" + step).classList.add("show");
+  }
+}
+
+function unlockNext(step){
+  if (step + 1 > unlocked){
+    unlocked = Math.min(step + 1, TOTAL_STEPS);
+    localStorage.setItem(STORAGE_KEY, String(unlocked));
+    renderDots();
+  }
+}
+
+/* ---------------------------------------------------------
+   Navegação entre passos
+--------------------------------------------------------- */
+function goToStep(n){
+  if (n > unlocked) return;
+  current = n;
+  document.querySelectorAll(".step").forEach(sec => {
+    sec.classList.toggle("hidden", parseInt(sec.dataset.step, 10) !== n);
+  });
+  document.getElementById("progressFill").style.width = ((n - 1) / (TOTAL_STEPS - 1) * 100) + "%";
+  renderDots();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+
+  if (n === 7 && !document.getElementById("finalCode").textContent){
+    document.getElementById("finalCode").textContent = FINAL_CODE;
+  }
+}
+
+function renderDots(){
+  const dotsEl = document.getElementById("dots");
+  dotsEl.innerHTML = "";
+  for (let i = 1; i <= TOTAL_STEPS; i++){
+    const dot = document.createElement("button");
+    dot.type = "button";
+    dot.className = "dot";
+    if (i < current) dot.classList.add("done");
+    if (i === current) dot.classList.add("current");
+    if (i <= unlocked) dot.classList.add("unlocked");
+    dot.textContent = i < current ? "✓" : i;
+    dot.disabled = i > unlocked;
+    dot.setAttribute("aria-label", "Ir para o passo " + i);
+    dot.addEventListener("click", () => goToStep(i));
+    dotsEl.appendChild(dot);
+  }
+}
+
+/* ---------------------------------------------------------
+   Copiar código final
+--------------------------------------------------------- */
+function copyCode(){
+  const feedback = document.getElementById("feedback-7");
+  navigator.clipboard.writeText(FINAL_CODE).then(() => {
+    feedback.className = "feedback ok";
+    feedback.textContent = "Código copiado! Agora cole no MyCompiler. ✅";
+  }).catch(() => {
+    // fallback para navegadores mais antigos
+    const ta = document.createElement("textarea");
+    ta.value = FINAL_CODE;
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand("copy"); 
+      feedback.className = "feedback ok";
+      feedback.textContent = "Código copiado! Agora cole no MyCompiler. ✅";
+    } catch (e){
+      feedback.className = "feedback err";
+      feedback.textContent = "Não foi possível copiar automaticamente. Selecione o código manualmente.";
+    }
+    document.body.removeChild(ta);
+  });
+}
+
+/* ---------------------------------------------------------
+   Inicialização
+--------------------------------------------------------- */
+Object.keys(exercises).forEach(step => {
+  renderCodeLine(parseInt(step, 10));
+  renderBank(parseInt(step, 10));
+});
+
+document.querySelectorAll(".step").forEach(sec => {
+  sec.classList.toggle("hidden", parseInt(sec.dataset.step, 10) !== current);
+});
+document.getElementById("progressFill").style.width = ((current - 1) / (TOTAL_STEPS - 1) * 100) + "%";
+renderDots();
+if (current === 7){
+  document.getElementById("finalCode").textContent = FINAL_CODE;
+}
+</script>
+
+</body>
+</html>
